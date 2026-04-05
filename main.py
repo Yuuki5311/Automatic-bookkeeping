@@ -55,7 +55,7 @@ try:
 
     class BookkeepingApp(MDApp):
         def build(self):
-            self.theme_cls.primary_palette = "Blue"
+            self.theme_cls.primary_palette = "Orange"
             self.theme_cls.theme_style = "Light"
             _register_chinese_font()
 
@@ -77,38 +77,72 @@ try:
             nav_bar = MDBoxLayout(
                 orientation='horizontal',
                 size_hint_y=None,
-                height='56dp',
+                height='64dp',
                 md_bg_color=self.theme_cls.primary_color,
+                padding='4dp',
+                spacing='4dp',
             )
-            self.btn_home = MDFlatButton(
-                text='首页', size_hint_x=0.33,
-                theme_text_color='Custom', text_color=(1, 1, 1, 1),
-                on_release=lambda x: self._switch('home'),
-            )
-            self.btn_stats = MDFlatButton(
-                text='统计', size_hint_x=0.33,
-                theme_text_color='Custom', text_color=(1, 1, 1, 1),
-                on_release=lambda x: self._switch('stats'),
-            )
-            self.btn_settings = MDFlatButton(
-                text='设置', size_hint_x=0.34,
-                theme_text_color='Custom', text_color=(1, 1, 1, 1),
-                on_release=lambda x: self._switch('settings'),
-            )
-            nav_bar.add_widget(self.btn_home)
-            nav_bar.add_widget(self.btn_stats)
-            nav_bar.add_widget(self.btn_settings)
+
+            self._nav_btns = {}
+            nav_items = [
+                ('home', '🏠', '首页'),
+                ('stats', '📊', '统计'),
+                ('settings', '⚙️', '设置'),
+            ]
+            for name, icon, label in nav_items:
+                btn_box = MDBoxLayout(
+                    orientation='vertical',
+                    size_hint_x=0.33,
+                    padding='4dp',
+                )
+                icon_lbl = MDLabel(
+                    text=icon,
+                    halign='center',
+                    size_hint_y=None,
+                    height='28dp',
+                )
+                text_lbl = MDLabel(
+                    text=label,
+                    halign='center',
+                    size_hint_y=None,
+                    height='20dp',
+                    theme_text_color='Custom',
+                    text_color=(1, 1, 1, 1),
+                )
+                btn_box.add_widget(icon_lbl)
+                btn_box.add_widget(text_lbl)
+                btn_box.bind(on_touch_down=lambda inst, touch, n=name:
+                    self._nav_touch(inst, touch, n))
+                nav_bar.add_widget(btn_box)
+                self._nav_btns[name] = (btn_box, icon_lbl, text_lbl)
 
             root.add_widget(self.sm)
             root.add_widget(nav_bar)
+            self._update_nav_highlight('home')
             return root
+
+        def _nav_touch(self, instance, touch, name):
+            if instance.collide_point(*touch.pos):
+                self._switch(name)
+
+        def _update_nav_highlight(self, active_name):
+            for name, (box, icon_lbl, text_lbl) in self._nav_btns.items():
+                if name == active_name:
+                    box.md_bg_color = (1, 1, 1, 0.25)
+                    text_lbl.text_color = (1, 1, 1, 1)
+                else:
+                    box.md_bg_color = (0, 0, 0, 0)
+                    text_lbl.text_color = (1, 1, 1, 0.7)
 
         def _switch(self, name):
             self.sm.current = name
+            self._update_nav_highlight(name)
             if name == 'home':
                 self.home_screen.refresh()
             elif name == 'stats':
                 self.stats_screen.refresh()
+            elif name == 'settings':
+                self.settings_screen.refresh()
 
 
     if __name__ == '__main__':

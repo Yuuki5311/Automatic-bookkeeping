@@ -17,7 +17,7 @@ android.sdk = 33
 android.accept_sdk_license = True
 android.arch = arm64-v8a
 android.allow_backup = True
-version = 1.2.5
+version = 1.3.0
 
 [buildozer]
 log_level = 2
