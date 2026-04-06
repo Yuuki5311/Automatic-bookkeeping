@@ -78,7 +78,8 @@ class HomeScreen(MDScreen):
         self.transaction_list = MDBoxLayout(
             orientation='vertical',
             size_hint_y=None,
-            spacing='2dp',
+            spacing='8dp',
+            padding=[8, 8, 8, 8],
         )
         self.transaction_list.bind(minimum_height=self.transaction_list.setter('height'))
         scroll.add_widget(self.transaction_list)
@@ -103,30 +104,60 @@ class HomeScreen(MDScreen):
             cat_name = cat.name if cat else '未分类'
             amount_str = f"{'−' if t.type == 'expense' else '+'} ¥{t.amount:.2f}"
             time_str = t.created_at[:10] if t.created_at else ''
-            color = (0.9, 0.2, 0.2, 1) if t.type == 'expense' else (0.2, 0.7, 0.2, 1)
+            amount_color = (0.9, 0.2, 0.2, 1) if t.type == 'expense' else (0.2, 0.7, 0.2, 1)
 
-            row = MDBoxLayout(
+            card = MDCard(
                 orientation='horizontal',
                 size_hint_y=None,
-                height='56dp',
-                padding='8dp',
+                height='72dp',
+                padding='12dp',
+                radius=[8, 8, 8, 8],
+                elevation=1,
+                md_bg_color=(1, 1, 1, 1),
             )
-            row.add_widget(MDLabel(
-                text=f"{t.merchant}  {cat_name}  {time_str}",
-                size_hint_x=0.7,
+
+            # 左侧：商家名 + 分类名
+            left = MDBoxLayout(orientation='vertical', size_hint_x=0.65)
+            left.add_widget(MDLabel(
+                text=t.merchant,
+                size_hint_y=0.55,
+                shorten=True,
+                shorten_from='right',
             ))
-            row.add_widget(MDLabel(
-                text=amount_str,
+            left.add_widget(MDLabel(
+                text=cat_name,
+                size_hint_y=0.45,
                 theme_text_color='Custom',
-                text_color=color,
-                size_hint_x=0.3,
-                halign='right',
+                text_color=(0.6, 0.6, 0.6, 1),
+                font_style='Caption',
             ))
 
+            # 右侧：金额 + 日期
+            right = MDBoxLayout(orientation='vertical', size_hint_x=0.35)
+            right.add_widget(MDLabel(
+                text=amount_str,
+                theme_text_color='Custom',
+                text_color=amount_color,
+                halign='right',
+                size_hint_y=0.55,
+                font_style='Subtitle2',
+            ))
+            right.add_widget(MDLabel(
+                text=time_str,
+                theme_text_color='Custom',
+                text_color=(0.6, 0.6, 0.6, 1),
+                halign='right',
+                size_hint_y=0.45,
+                font_style='Caption',
+            ))
+
+            card.add_widget(left)
+            card.add_widget(right)
+
             tid = t.id
-            row.bind(on_touch_down=lambda inst, touch, _id=tid:
+            card.bind(on_touch_down=lambda inst, touch, _id=tid:
                 self._on_row_touch(inst, touch, _id))
-            self.transaction_list.add_widget(row)
+            self.transaction_list.add_widget(card)
 
     def _on_row_touch(self, instance, touch, transaction_id):
         if instance.collide_point(*touch.pos):
