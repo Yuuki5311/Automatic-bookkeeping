@@ -134,22 +134,26 @@ class HomeScreen(MDScreen):
 
             # 右侧：金额 + 日期
             right = MDBoxLayout(orientation='vertical', size_hint_x=0.35)
-            right.add_widget(MDLabel(
+            lbl = MDLabel(
                 text=amount_str,
                 theme_text_color='Custom',
                 text_color=amount_color,
                 halign='right',
                 size_hint_y=0.55,
                 font_style='Subtitle2',
-            ))
-            right.add_widget(MDLabel(
+            )
+            lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', val))
+            right.add_widget(lbl)
+            date_lbl = MDLabel(
                 text=time_str,
                 theme_text_color='Custom',
                 text_color=(0.6, 0.6, 0.6, 1),
                 halign='right',
                 size_hint_y=0.45,
                 font_style='Caption',
-            ))
+            )
+            date_lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', val))
+            right.add_widget(date_lbl)
 
             card.add_widget(left)
             card.add_widget(right)
