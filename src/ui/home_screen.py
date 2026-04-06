@@ -3,6 +3,7 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.button import MDFlatButton, MDRaisedButton
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
+from kivymd.uix.card import MDCard
 from kivy.uix.popup import Popup
 from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
@@ -20,25 +21,58 @@ class HomeScreen(MDScreen):
     def _build_ui(self):
         root = MDBoxLayout(orientation='vertical', padding='8dp', spacing='8dp')
 
-        summary_box = MDBoxLayout(
-            orientation='vertical',
-            padding='16dp',
+        summary_card = MDCard(
+            orientation='horizontal',
             size_hint_y=None,
             height='100dp',
+            padding='16dp',
+            radius=[12, 12, 12, 12],
+            elevation=0,
         )
+        Clock.schedule_once(lambda dt: setattr(
+            summary_card, 'md_bg_color',
+            summary_card.theme_cls.primary_color
+        ), 0)
+
+        left_col = MDBoxLayout(orientation='vertical')
         self.income_label = MDLabel(
-            text='本月收入：¥0.00',
+            text='本月收入',
             theme_text_color='Custom',
-            text_color=(0.2, 0.7, 0.2, 1),
+            text_color=(1, 1, 1, 0.85),
+            font_style='Caption',
+            halign='center',
         )
+        self.income_amount = MDLabel(
+            text='¥0.00',
+            theme_text_color='Custom',
+            text_color=(1, 1, 1, 1),
+            font_style='H6',
+            halign='center',
+        )
+        left_col.add_widget(self.income_label)
+        left_col.add_widget(self.income_amount)
+
+        right_col = MDBoxLayout(orientation='vertical')
         self.expense_label = MDLabel(
-            text='本月支出：¥0.00',
+            text='本月支出',
             theme_text_color='Custom',
-            text_color=(0.9, 0.2, 0.2, 1),
+            text_color=(1, 1, 1, 0.85),
+            font_style='Caption',
+            halign='center',
         )
-        summary_box.add_widget(self.income_label)
-        summary_box.add_widget(self.expense_label)
-        root.add_widget(summary_box)
+        self.expense_amount = MDLabel(
+            text='¥0.00',
+            theme_text_color='Custom',
+            text_color=(1, 1, 1, 1),
+            font_style='H6',
+            halign='center',
+        )
+        right_col.add_widget(self.expense_label)
+        right_col.add_widget(self.expense_amount)
+
+        summary_card.add_widget(left_col)
+        summary_card.add_widget(right_col)
+        root.add_widget(summary_card)
 
         scroll = MDScrollView()
         self.transaction_list = MDBoxLayout(
@@ -55,8 +89,10 @@ class HomeScreen(MDScreen):
     def refresh(self):
         now = datetime.now()
         summary = self.db.get_monthly_summary(now.year, now.month)
-        self.income_label.text = f"本月收入：¥{summary['income']:.2f}"
-        self.expense_label.text = f"本月支出：¥{summary['expense']:.2f}"
+        self.income_label.text = '本月收入'
+        self.income_amount.text = f"¥{summary['income']:.2f}"
+        self.expense_label.text = '本月支出'
+        self.expense_amount.text = f"¥{summary['expense']:.2f}"
 
         self.transaction_list.clear_widgets()
         categories = {c.id: c for c in self.db.get_categories()}
