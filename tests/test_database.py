@@ -167,7 +167,7 @@ def test_upsert_transaction_inserts_when_no_match():
         amount=25.50, type='expense', merchant='未知',
         source='notification', created_at='2026-04-11T10:00:00', pending=0
     )
-    db.add_transaction(t1)
+    tid = db.add_transaction(t1)
 
     t2 = sample_transaction(
         amount=25.50, type='expense', merchant='麦当劳',
@@ -175,6 +175,8 @@ def test_upsert_transaction_inserts_when_no_match():
     )
     result_id = db.upsert_transaction(t2, window_seconds=10)
 
+    assert result_id is not None and result_id > 0
+    assert result_id != tid
     assert len(db.get_transactions()) == 2
 
 

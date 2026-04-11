@@ -106,7 +106,6 @@ class Database:
                WHERE amount = ? AND type = ?
                  AND ABS(CAST(strftime('%s', created_at) AS INTEGER)
                        - CAST(strftime('%s', ?) AS INTEGER)) <= ?
-                 AND pending = 0
                ORDER BY created_at DESC LIMIT 1""",
             (t.amount, t.type, t.created_at, window_seconds)
         ).fetchone()
