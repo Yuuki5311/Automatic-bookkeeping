@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">自动记账</string>
+    <string name="accessibility_desc">自动记账辅助服务：用于检测支付成功页面并读取金额</string>
+</resources>
