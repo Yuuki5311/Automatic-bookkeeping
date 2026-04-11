@@ -30,18 +30,25 @@ public class AutoBookkeepingAccessibilityService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) return;
-        
+
         AccessibilityNodeInfo rootNode = getRootInActiveWindow();
-        if (rootNode == null) return;
+        if (rootNode == null) {
+            Log.d(TAG, "rootNode is null (FLAG_SECURE or window not ready), pkg=" + event.getPackageName());
+            return;
+        }
 
         ArrayList<String> texts = new ArrayList<>();
         extractText(rootNode, texts);
         rootNode.recycle();
 
         String combinedText = String.join("\n", texts);
-        
+        Log.d(TAG, "onAccessibilityEvent pkg=" + event.getPackageName() + " textLen=" + combinedText.length());
+
         // Simple heuristic: if the screen contains payment successful indications
-        if (combinedText.contains("支付成功") || combinedText.contains("交易详情") || combinedText.contains("账单详情") || combinedText.contains("凭证") || combinedText.contains("支付凭证")) {
+        if (combinedText.contains("支付成功") || combinedText.contains("付款成功")
+                || combinedText.contains("交易详情") || combinedText.contains("账单详情")
+                || combinedText.contains("凭证") || combinedText.contains("支付凭证")
+                || combinedText.contains("转账成功") || combinedText.contains("已付款")) {
             long currentTime = System.currentTimeMillis();
             
             // Prevent sending the exact same text or sending too fast

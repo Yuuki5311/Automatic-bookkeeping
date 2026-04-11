@@ -186,6 +186,25 @@ class SettingsScreen(MDScreen):
                 from jnius import autoclass
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')
                 context = PythonActivity.mActivity.getApplicationContext()
+
+                # Primary: AccessibilityManager.getEnabledAccessibilityServiceList()
+                try:
+                    AccessibilityManager = autoclass('android.view.accessibility.AccessibilityManager')
+                    AccessibilityServiceInfo = autoclass('android.accessibilityservice.AccessibilityServiceInfo')
+                    Context = autoclass('android.content.Context')
+                    am = context.getSystemService(Context.ACCESSIBILITY_SERVICE)
+                    enabled_services = am.getEnabledAccessibilityServiceList(
+                        AccessibilityServiceInfo.FEEDBACK_ALL_MASK
+                    )
+                    for i in range(enabled_services.size()):
+                        svc = enabled_services.get(i)
+                        if 'autobookkeeping' in svc.getId().lower():
+                            return True
+                    return False
+                except Exception:
+                    pass
+
+                # Fallback: Settings.Secure
                 Settings = autoclass('android.provider.Settings')
                 enabled = Settings.Secure.getString(
                     context.getContentResolver(),

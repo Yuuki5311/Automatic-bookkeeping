@@ -120,12 +120,17 @@ def _parse_wechat(text: str) -> Optional[ParseResult]:
     - "微信支付 25.50元 收款方：便利店"
     - "微信支付成功，向便利店付款25.50元"
     - "你已收到25.50元转账"
+    - "你已成功付款25.50元"
+    - "付款成功 ¥25.50"
     """
     # 支出模式
     expense_patterns = [
         r'微信支付\s*([\d.]+)元\s*收款方[：:]\s*(.+)',
         r'向(.+?)付款([\d.]+)元',
         r'付款([\d.]+)元.*?(?:给|收款方)[：:\s]*(.+)',
+        r'成功付款([\d.]+)元',
+        r'付款成功.*?[¥￥]([\d.]+)',
+        r'[¥￥]([\d.]+).*?付款成功',
     ]
     for i, pattern in enumerate(expense_patterns):
         m = re.search(pattern, text)
@@ -137,10 +142,12 @@ def _parse_wechat(text: str) -> Optional[ParseResult]:
                     merchant=m.group(1).strip(),
                     source='wechat'
                 )
+            amount_str = m.group(1) if m.lastindex >= 1 else '0'
+            merchant = m.group(2).strip() if m.lastindex >= 2 else '微信支付'
             return ParseResult(
-                amount=float(m.group(1)),
+                amount=float(amount_str),
                 type='expense',
-                merchant=m.group(2).strip(),
+                merchant=merchant,
                 source='wechat'
             )
 
@@ -148,6 +155,7 @@ def _parse_wechat(text: str) -> Optional[ParseResult]:
     income_patterns = [
         r'收到([\d.]+)元转账',
         r'到账([\d.]+)元',
+        r'你已收到([\d.]+)元',
     ]
     for pattern in income_patterns:
         m = re.search(pattern, text)
