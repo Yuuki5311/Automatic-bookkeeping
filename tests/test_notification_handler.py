@@ -83,6 +83,7 @@ def test_handle_accessibility_source_upserts(handler):
     # 商家已更新
     assert txns[0].merchant == '麦当劳'
     assert txns[0].source == 'accessibility'
+    assert txns[0].pending == 0
 
 
 def test_handle_notification_source_always_inserts(handler):
@@ -110,4 +111,4 @@ def test_handle_default_source_is_notification(handler):
     )
     txns = handler.db.get_transactions()
     assert len(txns) == 1
-    assert txns[0].source in ('alipay', 'wechat', 'notification', 'manual')
+    assert txns[0].source == 'alipay'

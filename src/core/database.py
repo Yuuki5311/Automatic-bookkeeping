@@ -112,7 +112,7 @@ class Database:
 
         if row:
             self.conn.execute(
-                "UPDATE transactions SET merchant=?, source=? WHERE id=?",
+                "UPDATE transactions SET merchant=?, source=?, pending=0 WHERE id=?",
                 (t.merchant, t.source, row['id'])
             )
             self.conn.commit()
