@@ -13,7 +13,7 @@ public class NLService extends NotificationListenerService {
         String packageName = sbn.getPackageName();
         if (packageName == null) return;
         
-        if (packageName.contains("alipay") || packageName.contains("tencent.mm")) {
+        if (packageName.toLowerCase().contains("alipay") || packageName.contains("tencent.mm")) {
             Notification notification = sbn.getNotification();
             if (notification == null) return;
             Bundle extras = notification.extras;

@@ -18,11 +18,11 @@ class Database:
     def __init__(self, db_path: str = "bookkeeping.db"):
         self.db_path = db_path
         if db_path == ":memory:":
-            self.conn = sqlite3.connect(":memory:")
+            self.conn = sqlite3.connect(":memory:", check_same_thread=False)
             self.conn.row_factory = sqlite3.Row
         else:
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-            self.conn = sqlite3.connect(db_path)
+            self.conn = sqlite3.connect(db_path, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.init_db()
