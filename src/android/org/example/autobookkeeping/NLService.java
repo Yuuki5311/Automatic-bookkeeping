@@ -29,6 +29,7 @@ public class NLService extends NotificationListenerService {
             Log.d("NLService", "AutoBookkeeping received: " + fullText);
             
             Intent intent = new Intent("org.example.autobookkeeping.NOTIFICATION");
+            intent.setPackage("org.example.autobookkeeping");
             intent.putExtra("package", packageName);
             intent.putExtra("text", fullText);
             intent.putExtra("source", "notification");

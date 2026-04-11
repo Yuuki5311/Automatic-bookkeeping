@@ -189,9 +189,9 @@ class SettingsScreen(MDScreen):
                 Settings = autoclass('android.provider.Settings')
                 enabled = Settings.Secure.getString(
                     context.getContentResolver(),
-                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                    "enabled_accessibility_services"
                 )
-                return bool(enabled and 'AutoBookkeepingAccessibilityService' in enabled)
+                return bool(enabled and 'autobookkeeping' in enabled.lower())
             except Exception:
                 return False
         return True

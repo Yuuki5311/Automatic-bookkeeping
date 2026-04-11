@@ -28,6 +28,7 @@ try:
     from kivymd.uix.button import MDFlatButton, MDRaisedButton
     from kivymd.uix.screenmanager import MDScreenManager
     from kivymd.uix.label import MDLabel
+    from kivymd.icon_definitions import md_icons
 
     from src.core.database import Database
     from src.ui.home_screen import HomeScreen
@@ -44,7 +45,7 @@ try:
             fp = os.path.join(candidate, 'NotoSansSC-Regular.ttf')
             if os.path.exists(fp):
                 resource_add_path(candidate)
-                for font_name in ['Roboto', 'RobotoMedium', 'Icons']:
+                for font_name in ['Roboto', 'RobotoMedium']:
                     try:
                         LabelBase.register(name=font_name, fn_regular=fp,
                             fn_bold=fp, fn_italic=fp, fn_bolditalic=fp)
@@ -60,6 +61,10 @@ try:
             _register_chinese_font()
 
             self.db = Database("bookkeeping.db")
+
+        def on_start(self):
+            from src.service.notification_service import start_service
+            start_service()
             self.db.init_db()
 
             root = MDBoxLayout(orientation='vertical')
@@ -85,9 +90,9 @@ try:
 
             self._nav_btns = {}
             nav_items = [
-                ('home', '🏠', '首页'),
-                ('stats', '📊', '统计'),
-                ('settings', '⚙️', '设置'),
+                ('home', 'home', '首页'),
+                ('stats', 'chart-bar', '统计'),
+                ('settings', 'cog', '设置'),
             ]
             for name, icon, label in nav_items:
                 btn_box = MDBoxLayout(
@@ -96,10 +101,13 @@ try:
                     padding='4dp',
                 )
                 icon_lbl = MDLabel(
-                    text=icon,
+                    text=md_icons[icon],
+                    font_style='Icon',
                     halign='center',
                     size_hint_y=None,
                     height='28dp',
+                    theme_text_color='Custom',
+                    text_color=(1, 1, 1, 1),
                 )
                 text_lbl = MDLabel(
                     text=label,
@@ -130,9 +138,11 @@ try:
                 if name == active_name:
                     box.md_bg_color = (1, 1, 1, 0.25)
                     text_lbl.text_color = (1, 1, 1, 1)
+                    icon_lbl.text_color = (1, 1, 1, 1)
                 else:
                     box.md_bg_color = (0, 0, 0, 0)
                     text_lbl.text_color = (1, 1, 1, 0.7)
+                    icon_lbl.text_color = (1, 1, 1, 0.7)
 
         def _switch(self, name):
             self.sm.current = name

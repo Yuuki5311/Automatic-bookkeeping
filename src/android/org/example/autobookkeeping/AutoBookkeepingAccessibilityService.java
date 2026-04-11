@@ -56,6 +56,7 @@ public class AutoBookkeepingAccessibilityService extends AccessibilityService {
             String packageName = event.getPackageName() != null ? event.getPackageName().toString() : "unknown";
             
             Intent intent = new Intent("org.example.autobookkeeping.ACCESSIBILITY");
+            intent.setPackage("org.example.autobookkeeping");
             intent.putExtra("package", packageName);
             intent.putExtra("text", combinedText);
             intent.putExtra("source", "accessibility");
