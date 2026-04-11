@@ -31,17 +31,29 @@ public class AutoBookkeepingAccessibilityService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) return;
 
-        AccessibilityNodeInfo rootNode = getRootInActiveWindow();
-        if (rootNode == null) {
-            Log.d(TAG, "rootNode is null (FLAG_SECURE or window not ready), pkg=" + event.getPackageName());
-            return;
+        // Collect text from the event itself (works even when FLAG_SECURE blocks window content)
+        StringBuilder eventTextBuilder = new StringBuilder();
+        for (CharSequence t : event.getText()) {
+            if (t != null) eventTextBuilder.append(t).append("\n");
+        }
+        if (event.getContentDescription() != null) {
+            eventTextBuilder.append(event.getContentDescription());
         }
 
-        ArrayList<String> texts = new ArrayList<>();
-        extractText(rootNode, texts);
-        rootNode.recycle();
+        AccessibilityNodeInfo rootNode = getRootInActiveWindow();
+        String combinedText;
+        if (rootNode != null) {
+            ArrayList<String> texts = new ArrayList<>();
+            extractText(rootNode, texts);
+            rootNode.recycle();
+            combinedText = String.join("\n", texts);
+        } else {
+            // FLAG_SECURE or window not ready — fall back to event-level text
+            combinedText = eventTextBuilder.toString();
+            Log.d(TAG, "rootNode null, using event text, pkg=" + event.getPackageName() + " text=" + combinedText);
+        }
 
-        String combinedText = String.join("\n", texts);
+        if (combinedText.trim().isEmpty()) return;
         Log.d(TAG, "onAccessibilityEvent pkg=" + event.getPackageName() + " textLen=" + combinedText.length());
 
         // Simple heuristic: if the screen contains payment successful indications
