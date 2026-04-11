@@ -1,6 +1,8 @@
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
+from kivymd.uix.card import MDCard
+from kivy.core.text import Label as CoreLabel
 from kivymd.uix.scrollview import MDScrollView
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Ellipse, Rectangle, Line
@@ -74,7 +76,7 @@ class BarChart(Widget):
             1  # 避免除零
         )
 
-        padding = 20
+        padding = 30
         chart_w = self.width - padding * 2
         chart_h = self.height - padding * 2
         bar_group_w = chart_w / n
@@ -100,13 +102,12 @@ class BarChart(Widget):
                     size=(bar_w, expense_h)
                 )
 
-                # 月份标签（用 Line 画刻度线代替文字，因为 Canvas 不支持文字）
-                Color(0.5, 0.5, 0.5, 1)
-                Line(points=[
-                    x_base + bar_group_w / 2, self.y + padding - 5,
-                    x_base + bar_group_w / 2, self.y + padding
-                ])
-
+                # 绘制月份标签
+                Color(1, 1, 1, 1)  # 必须设为白色才能正常显示纹理颜色
+                lbl = CoreLabel(text=f"{d['month']}月", font_size=12, color=(0.4, 0.4, 0.4, 1), font_name='NotoSansSC-Regular.ttf')
+                lbl.refresh()
+                tex = lbl.texture
+                Rectangle(texture=tex, pos=(x_base + bar_group_w / 2 - tex.size[0] / 2, self.y + padding - 20), size=tex.size)
 
 class StatsScreen(MDScreen):
     # 饼图颜色列表
@@ -129,42 +130,49 @@ class StatsScreen(MDScreen):
 
     def _build_ui(self):
         scroll = MDScrollView()
-        root = MDBoxLayout(orientation='vertical', padding='8dp', spacing='8dp',
+        root = MDBoxLayout(orientation='vertical', padding='16dp', spacing='16dp',
                            size_hint_y=None)
         root.bind(minimum_height=root.setter('height'))
 
-        # 饼图区域
-        root.add_widget(MDLabel(
+        # 饼图区域 (MDCard)
+        pie_card = MDCard(orientation='vertical', padding='16dp', spacing='8dp', size_hint_y=None, radius=[12, 12, 12, 12], elevation=1)
+        pie_card.bind(minimum_height=pie_card.setter('height'))
+        pie_card.add_widget(MDLabel(
             text='本月支出分类',
             size_hint_y=None,
-            height='40dp'
+            height='40dp',
+            font_style='H6'
         ))
         self.pie_chart = PieChart(size_hint_y=None, height='250dp')
-        root.add_widget(self.pie_chart)
+        pie_card.add_widget(self.pie_chart)
 
-        # 饼图图例
         self.legend_box = MDBoxLayout(
             orientation='vertical',
             size_hint_y=None,
             height='0dp',
             spacing='4dp'
         )
-        root.add_widget(self.legend_box)
+        pie_card.add_widget(self.legend_box)
+        root.add_widget(pie_card)
 
-        # 柱状图区域
-        root.add_widget(MDLabel(
+        # 柱状图区域 (MDCard)
+        bar_card = MDCard(orientation='vertical', padding='16dp', spacing='8dp', size_hint_y=None, radius=[12, 12, 12, 12], elevation=1)
+        bar_card.bind(minimum_height=bar_card.setter('height'))
+        bar_card.add_widget(MDLabel(
             text='近6个月收支',
             size_hint_y=None,
-            height='40dp'
+            height='40dp',
+            font_style='H6'
         ))
         self.bar_chart = BarChart(size_hint_y=None, height='200dp')
-        root.add_widget(self.bar_chart)
+        bar_card.add_widget(self.bar_chart)
 
-        # 柱状图图例
         legend_bar = MDBoxLayout(orientation='horizontal', size_hint_y=None, height='30dp')
         legend_bar.add_widget(MDLabel(text='■ 收入', theme_text_color='Custom', text_color=(0.2, 0.7, 0.2, 1)))
         legend_bar.add_widget(MDLabel(text='■ 支出', theme_text_color='Custom', text_color=(0.9, 0.2, 0.2, 1)))
-        root.add_widget(legend_bar)
+        bar_card.add_widget(legend_bar)
+        
+        root.add_widget(bar_card)
 
         scroll.add_widget(root)
         self.add_widget(scroll)

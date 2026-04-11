@@ -7,3 +7,6 @@ __pycache__/
 .buildozer/
 bin/
 *.apk
+.DS_Store
+patch_*.py
+buildozer_build*.log

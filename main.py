@@ -61,10 +61,6 @@ try:
             _register_chinese_font()
 
             self.db = Database("bookkeeping.db")
-
-        def on_start(self):
-            from src.service.notification_service import start_service
-            start_service()
             self.db.init_db()
 
             root = MDBoxLayout(orientation='vertical')
@@ -128,6 +124,10 @@ try:
             root.add_widget(nav_bar)
             self._update_nav_highlight('home')
             return root
+
+        def on_start(self):
+            from src.service.notification_service import start_service
+            start_service()
 
         def _nav_touch(self, instance, touch, name):
             if instance.collide_point(*touch.pos):

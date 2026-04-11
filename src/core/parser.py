@@ -17,12 +17,59 @@ def parse_notification(package_name: str, text: str) -> Optional[ParseResult]:
     package_name: 'com.eg.android.AlipayGphone' 或 'com.tencent.mm'
     返回 ParseResult 或 None（无法解析时）
     """
+    if '\n' in text:
+        res = _parse_accessibility(package_name, text)
+        if res:
+            return res
+
     if 'alipay' in package_name.lower() or package_name == 'com.eg.android.AlipayGphone':
         return _parse_alipay(text)
     elif 'tencent.mm' in package_name or package_name == 'com.tencent.mm':
         return _parse_wechat(text)
     return None
 
+def _parse_accessibility(package_name: str, text: str) -> Optional[ParseResult]:
+    source = 'alipay' if 'alipay' in package_name.lower() else 'wechat'
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    
+    amount = 0.0
+    merchant = '未知'
+    type_ = 'expense' # Default to expense for accessibility payment pages
+
+    amount_found = False
+    merchant_found = False
+
+    for i, line in enumerate(lines):
+        # Look for amount
+        if not amount_found:
+            # Often amount is alone on a line, or "￥25.50", "-25.50", "25.50元"
+            m = re.match(r'^[^\d]*?([\d]+\.\d{2})[^\d]*?$', line)
+            if m:
+                amount = float(m.group(1))
+                amount_found = True
+            elif line.replace('.', '', 1).isdigit() and '.' in line:
+                amount = float(line)
+                amount_found = True
+
+        # Look for merchant
+        if not merchant_found:
+            if '收款方' in line or '商户' in line or '付款给' in line or '收款人' in line:
+                # Sometimes it's on the same line: "收款方 星巴克" or "收款方星巴克"
+                m = re.search(r'(?:收款方|商户.*?|付款给|收款人)[:：\s]*(.+)', line)
+                if m and m.group(1).strip():
+                    merchant = m.group(1).strip()
+                    merchant_found = True
+                elif i + 1 < len(lines):
+                    # Next line is probably merchant
+                    next_line = lines[i+1]
+                    # Exclude lines that look like numbers or other labels
+                    if not re.search(r'\d', next_line) and len(next_line) > 1:
+                        merchant = next_line
+                        merchant_found = True
+
+    if amount > 0:
+        return ParseResult(amount=amount, type=type_, merchant=merchant, source=source)
+    return None
 
 def _parse_alipay(text: str) -> Optional[ParseResult]:
     """

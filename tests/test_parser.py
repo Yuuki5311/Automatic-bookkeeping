@@ -91,3 +91,22 @@ def test_parse_unrecognized_wechat_text():
     text = '这是一条无法识别的微信通知'
     result = parse_notification(WECHAT_PKG, text)
     assert result is None
+
+def test_parse_accessibility_wechat():
+    text = "支付成功\n25.50\n收款方\n便利店\n完成"
+    result = parse_notification(WECHAT_PKG, text)
+    assert result is not None
+    assert result.amount == 25.50
+    assert result.type == "expense"
+    assert result.merchant == "便利店"
+    assert result.source == "wechat"
+
+def test_parse_accessibility_alipay():
+    text = "交易成功\n-25.50\n付款给 星巴克"
+    result = parse_notification(ALIPAY_PKG, text)
+    assert result is not None
+    assert result.amount == 25.50
+    assert result.type == "expense"
+    assert result.merchant == "星巴克"
+    assert result.source == "alipay"
+
