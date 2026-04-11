@@ -117,8 +117,9 @@ class MyBroadcastReceiver:
             def onReceive(self, context, intent):
                 package = intent.getStringExtra('package')
                 text = intent.getStringExtra('text')
+                source = intent.getStringExtra('source') or 'notification'
                 if package and text:
-                    self.handler.handle(package, text)
+                    self.handler.handle(package, text, source=source)
             
             def __init__(self, handler):
                 super().__init__()
