@@ -115,6 +115,31 @@ class MyBroadcastReceiver:
 
             @java_method('(Landroid/content/Context;Landroid/content/Intent;)V')
             def onReceive(self, context, intent):
+                action = intent.getAction()
+                if action == 'org.example.autobookkeeping.MANUAL_ENTRY':
+                    amount_str = intent.getStringExtra('amount') or ''
+                    type_str = intent.getStringExtra('type') or 'expense'
+                    merchant = intent.getStringExtra('merchant') or ''
+                    category_id = intent.getIntExtra('category_id', 0)
+                    try:
+                        amount = float(amount_str)
+                    except (ValueError, TypeError):
+                        return
+                    from src.models.transaction import Transaction
+                    from datetime import datetime
+                    t = Transaction(
+                        id=None,
+                        amount=amount,
+                        type=type_str if type_str in ('income', 'expense') else 'expense',
+                        category_id=category_id if category_id > 0 else None,
+                        merchant=merchant or '手动记录',
+                        note='',
+                        source='manual',
+                        created_at=datetime.now().isoformat(timespec='seconds'),
+                        pending=0,
+                    )
+                    self.handler.db.add_transaction(t)
+                    return
                 package = intent.getStringExtra('package')
                 text = intent.getStringExtra('text')
                 source = intent.getStringExtra('source') or 'notification'
@@ -129,6 +154,7 @@ class MyBroadcastReceiver:
         self.receiver = GenericBroadcastReceiver(self.callback)
         filter = IntentFilter('org.example.autobookkeeping.NOTIFICATION')
         filter.addAction('org.example.autobookkeeping.ACCESSIBILITY')
+        filter.addAction('org.example.autobookkeeping.MANUAL_ENTRY')
         PythonActivity.mActivity.registerReceiver(self.receiver, filter)
 
     def stop(self):
@@ -153,6 +179,20 @@ def start_service():
             handler = NotificationHandler()
             _receiver = MyBroadcastReceiver(handler)
             _receiver.start()
+            # 发送分类列表给悬浮窗服务
+            try:
+                import json
+                from jnius import autoclass
+                Intent = autoclass('android.content.Intent')
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                categories = handler.db.get_categories()
+                cats_json = json.dumps([{'id': c.id, 'name': c.name} for c in categories])
+                cat_intent = Intent('org.example.autobookkeeping.CATEGORIES')
+                cat_intent.setPackage('org.example.autobookkeeping')
+                cat_intent.putExtra('categories_json', cats_json)
+                PythonActivity.mActivity.sendBroadcast(cat_intent)
+            except Exception as e:
+                logger.warning(f"Failed to send categories broadcast: {e}")
         logger.info("Notification listener broadcast receiver started.")
     except Exception as e:
         logger.error(f"Failed to start service: {e}")
