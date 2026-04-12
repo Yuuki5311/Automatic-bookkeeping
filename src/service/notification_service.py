@@ -113,9 +113,27 @@ class MyBroadcastReceiver:
             __javainterfaces__ = ['org/kivy/android/GenericBroadcastReceiverCallback']
             __javacontext__ = 'app'
 
+            def __init__(self, handler):
+                super().__init__()
+                self.handler = handler
+
             @java_method('(Landroid/content/Context;Landroid/content/Intent;)V')
             def onReceive(self, context, intent):
                 action = intent.getAction()
+                if action == 'org.example.autobookkeeping.REQUEST_CATEGORIES':
+                    try:
+                        import json
+                        from jnius import autoclass
+                        Intent = autoclass('android.content.Intent')
+                        cats = self.handler.db.get_categories()
+                        cats_json = json.dumps([{'id': c.id, 'name': c.name} for c in cats])
+                        resp = Intent('org.example.autobookkeeping.CATEGORIES')
+                        resp.setPackage('org.example.autobookkeeping')
+                        resp.putExtra('categories_json', cats_json)
+                        context.sendBroadcast(resp)
+                    except Exception:
+                        pass
+                    return
                 if action == 'org.example.autobookkeeping.MANUAL_ENTRY':
                     amount_str = intent.getStringExtra('amount') or ''
                     type_str = intent.getStringExtra('type') or 'expense'
@@ -145,16 +163,13 @@ class MyBroadcastReceiver:
                 source = intent.getStringExtra('source') or 'notification'
                 if package and text:
                     self.handler.handle(package, text, source=source)
-            
-            def __init__(self, handler):
-                super().__init__()
-                self.handler = handler
 
         self.callback = ReceiverCallback(self.handler)
         self.receiver = GenericBroadcastReceiver(self.callback)
         filter = IntentFilter('org.example.autobookkeeping.NOTIFICATION')
         filter.addAction('org.example.autobookkeeping.ACCESSIBILITY')
         filter.addAction('org.example.autobookkeeping.MANUAL_ENTRY')
+        filter.addAction('org.example.autobookkeeping.REQUEST_CATEGORIES')
         PythonActivity.mActivity.registerReceiver(self.receiver, filter)
 
     def stop(self):

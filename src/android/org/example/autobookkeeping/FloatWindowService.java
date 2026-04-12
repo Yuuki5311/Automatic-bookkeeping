@@ -39,6 +39,7 @@ public class FloatWindowService extends Service {
     private static final int STATE_EXPANDED = 1;
     private static final int STATE_CONFIRMED = 2;
 
+    private static final String TAG = "FloatWindowService";
     private static final String ACTION_CATEGORIES = "org.example.autobookkeeping.CATEGORIES";
     private static final String ACTION_MANUAL_ENTRY = "org.example.autobookkeeping.MANUAL_ENTRY";
 
@@ -84,6 +85,8 @@ public class FloatWindowService extends Service {
         }
     };
 
+    private Runnable _confirmedToCollapsed;
+
     private final BroadcastReceiver _receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -126,6 +129,10 @@ public class FloatWindowService extends Service {
                 @Override
                 public void run() {
                     initFloatWindow();
+                    // 请求分类数据
+                    Intent reqIntent = new Intent("org.example.autobookkeeping.REQUEST_CATEGORIES");
+                    reqIntent.setPackage("org.example.autobookkeeping");
+                    sendBroadcast(reqIntent);
                 }
             });
         }
@@ -353,6 +360,9 @@ public class FloatWindowService extends Service {
     }
 
     private void switchToCollapsed() {
+        if (_confirmedToCollapsed != null) {
+            _mainHandler.removeCallbacks(_confirmedToCollapsed);
+        }
         hideKeyboard();
         _state = STATE_COLLAPSED;
         _expandedCard.setVisibility(View.GONE);
@@ -419,7 +429,7 @@ public class FloatWindowService extends Service {
         _merchantInput.setVisibility(View.GONE);
         _confirmBtn.setVisibility(View.GONE);
 
-        _mainHandler.postDelayed(new Runnable() {
+        _confirmedToCollapsed = new Runnable() {
             @Override
             public void run() {
                 _amountInput.setVisibility(View.VISIBLE);
@@ -428,15 +438,23 @@ public class FloatWindowService extends Service {
                 _confirmBtn.setVisibility(View.VISIBLE);
                 switchToCollapsed();
             }
-        }, 2000);
+        };
+        _mainHandler.postDelayed(_confirmedToCollapsed, 2000);
     }
 
     private boolean handleTouch(MotionEvent event) {
-        if (_state == STATE_EXPANDED) return false;
         if (_state == STATE_CONFIRMED) return true;
 
         switch (event.getAction()) {
+            case MotionEvent.ACTION_OUTSIDE:
+                if (_state == STATE_EXPANDED) {
+                    switchToCollapsed();
+                    return true;
+                }
+                break;
+
             case MotionEvent.ACTION_DOWN:
+                if (_state == STATE_EXPANDED) return false;
                 _mainHandler.removeCallbacks(_collapseToEdge);
                 cancelAnimators();
                 _params.x = 0;
@@ -543,7 +561,9 @@ public class FloatWindowService extends Service {
                     });
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            android.util.Log.w(TAG, "updateCategories failed: " + e.getMessage());
+        }
     }
 
     private void hideKeyboard() {
