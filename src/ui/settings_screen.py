@@ -65,6 +65,17 @@ class SettingsScreen(MDScreen):
 
         root.add_widget(MDLabel(text='系统权限管理 (必需)', size_hint_y=None, height='40dp'))
 
+        # 悬浮窗权限行
+        overlay_row = MDBoxLayout(orientation='horizontal', size_hint_y=None, height='48dp', spacing='12dp')
+        self.overlay_status_label = MDLabel(text="悬浮窗权限：检测中", markup=True, size_hint_x=0.5)
+        overlay_row.add_widget(self.overlay_status_label)
+        overlay_row.add_widget(MDRaisedButton(
+            text='去授权',
+            theme_text_color='Custom', text_color=(0, 0, 0, 1),
+            on_release=lambda x: self._open_overlay_settings()
+        ))
+        root.add_widget(overlay_row)
+
         # 通知权限行
         notif_row = MDBoxLayout(orientation='horizontal', size_hint_y=None, height='48dp', spacing='12dp')
         self.notif_status_label = MDLabel(text="通知权限：检测中", markup=True, size_hint_x=0.5)
@@ -86,6 +97,20 @@ class SettingsScreen(MDScreen):
             on_release=lambda x: self._open_accessibility_settings()
         ))
         root.add_widget(acc_row)
+
+        # 悬浮窗服务控制行
+        float_row = MDBoxLayout(orientation='horizontal', size_hint_y=None, height='48dp', spacing='12dp')
+        float_row.add_widget(MDRaisedButton(
+            text='启动悬浮窗',
+            theme_text_color='Custom', text_color=(0, 0, 0, 1),
+            on_release=lambda x: self._start_float_window()
+        ))
+        float_row.add_widget(MDRaisedButton(
+            text='停止悬浮窗',
+            theme_text_color='Custom', text_color=(0, 0, 0, 1),
+            on_release=lambda x: self._stop_float_window()
+        ))
+        root.add_widget(float_row)
 
         root.add_widget(MDLabel(text='自动记账测试 (模拟系统通知)', size_hint_y=None, height='40dp'))
         
@@ -286,6 +311,74 @@ class SettingsScreen(MDScreen):
         else:
             self._show_toast("仅在 Android 设备上可用")
 
+    def _check_overlay_permission(self):
+        from kivy.utils import platform
+        if platform == 'android':
+            try:
+                from jnius import autoclass
+                Settings = autoclass('android.provider.Settings')
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                context = PythonActivity.mActivity.getApplicationContext()
+                return Settings.canDrawOverlays(context)
+            except Exception:
+                return False
+        return True
+
+    def _open_overlay_settings(self):
+        from kivy.utils import platform
+        if platform == 'android':
+            try:
+                from jnius import autoclass
+                Intent = autoclass('android.content.Intent')
+                Settings = autoclass('android.provider.Settings')
+                Uri = autoclass('android.net.Uri')
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                uri = Uri.fromParts("package", PythonActivity.mActivity.getPackageName(), None)
+                intent.setData(uri)
+                PythonActivity.mActivity.startActivity(intent)
+            except Exception as e:
+                self._show_toast("无法打开设置: " + str(e))
+        else:
+            self._show_toast("仅在 Android 设备上可用")
+
+    def _start_float_window(self):
+        from kivy.utils import platform
+        if platform == 'android':
+            if not self._check_overlay_permission():
+                self._open_overlay_settings()
+                return
+            try:
+                from jnius import autoclass
+                Intent = autoclass('android.content.Intent')
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                intent = Intent()
+                intent.setClassName('org.example.autobookkeeping',
+                                    'org.example.autobookkeeping.FloatWindowService')
+                PythonActivity.mActivity.startService(intent)
+                self._show_toast("悬浮窗已启动")
+            except Exception as e:
+                self._show_toast("启动失败: " + str(e))
+        else:
+            self._show_toast("仅在 Android 设备上可用")
+
+    def _stop_float_window(self):
+        from kivy.utils import platform
+        if platform == 'android':
+            try:
+                from jnius import autoclass
+                Intent = autoclass('android.content.Intent')
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                intent = Intent()
+                intent.setClassName('org.example.autobookkeeping',
+                                    'org.example.autobookkeeping.FloatWindowService')
+                PythonActivity.mActivity.stopService(intent)
+                self._show_toast("悬浮窗已停止")
+            except Exception as e:
+                self._show_toast("停止失败: " + str(e))
+        else:
+            self._show_toast("仅在 Android 设备上可用")
+
     def _update_permission_status(self):
         has_notif = self._check_notification_permission()
         self.notif_status_label.text = (
@@ -296,6 +389,11 @@ class SettingsScreen(MDScreen):
         self.acc_status_label.text = (
             "无障碍权限：[color=00CC00]已授权[/color]" if has_acc
             else "无障碍权限：[color=FF3333]未授权[/color]"
+        )
+        has_overlay = self._check_overlay_permission()
+        self.overlay_status_label.text = (
+            "悬浮窗权限：[color=00CC00]已授权[/color]" if has_overlay
+            else "悬浮窗权限：[color=FF3333]未授权[/color]"
         )
 
     def _simulate_alipay(self):
