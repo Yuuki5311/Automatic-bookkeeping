@@ -160,6 +160,10 @@
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!-- 悬浮窗快速记账服务 -->
+        <service android:name="org.example.autobookkeeping.FloatWindowService"
+                 android:exported="false" />
+
     </application>
 
 </manifest>
