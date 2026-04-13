@@ -173,24 +173,81 @@ class HomeScreen(MDScreen):
             return
         categories = {c.id: c.name for c in self.db.get_categories()}
         cat_name = categories.get(t.category_id, '未分类')
+        type_str = '支出' if t.type == 'expense' else '收入'
+        amount_color = (0.85, 0.15, 0.15, 1) if t.type == 'expense' else (0.1, 0.65, 0.1, 1)
 
-        content = BoxLayout(orientation='vertical', spacing='8dp', padding='8dp')
-        content.add_widget(MDLabel(text=f"商家：{t.merchant}"))
-        content.add_widget(MDLabel(text=f"金额：¥{t.amount:.2f}"))
-        content.add_widget(MDLabel(text=f"类型：{'支出' if t.type == 'expense' else '收入'}"))
-        content.add_widget(MDLabel(text=f"分类：{cat_name}"))
-        content.add_widget(MDLabel(text=f"时间：{t.created_at}"))
+        from kivy.graphics import Color, Rectangle
+        from kivy.uix.label import Label
+
+        content = BoxLayout(orientation='vertical', spacing='12dp', padding='16dp')
+
+        # 白色背景
+        with content.canvas.before:
+            Color(1, 1, 1, 1)
+            self._detail_bg = Rectangle(pos=content.pos, size=content.size)
+        content.bind(pos=lambda inst, v: setattr(self._detail_bg, 'pos', v),
+                     size=lambda inst, v: setattr(self._detail_bg, 'size', v))
+
+        def row(label_text, value_text, value_color=(0.1, 0.1, 0.1, 1)):
+            box = BoxLayout(orientation='horizontal', size_hint_y=None, height='36dp')
+            box.add_widget(MDLabel(
+                text=label_text,
+                theme_text_color='Custom',
+                text_color=(0.5, 0.5, 0.5, 1),
+                size_hint_x=0.3,
+                font_style='Body2',
+            ))
+            box.add_widget(MDLabel(
+                text=value_text,
+                theme_text_color='Custom',
+                text_color=value_color,
+                size_hint_x=0.7,
+                font_style='Body1',
+            ))
+            return box
+
+        content.add_widget(row('商家', t.merchant))
+        content.add_widget(row('金额', f"¥{t.amount:.2f}", amount_color))
+        content.add_widget(row('类型', type_str))
+        content.add_widget(row('分类', cat_name))
+        content.add_widget(row('时间', t.created_at or ''))
         if t.note:
-            content.add_widget(MDLabel(text=f"备注：{t.note}"))
+            content.add_widget(row('备注', t.note))
 
-        popup = Popup(title='账单详情', content=content, size_hint=(0.9, 0.7))
+        # 分隔线
+        sep = BoxLayout(size_hint_y=None, height='1dp')
+        with sep.canvas:
+            Color(0.88, 0.88, 0.88, 1)
+            Rectangle(pos=sep.pos, size=sep.size)
+        sep.bind(pos=lambda inst, v: inst.canvas.clear() or
+                 inst.canvas.add(Color(0.88, 0.88, 0.88, 1)) or
+                 inst.canvas.add(Rectangle(pos=v, size=inst.size)))
+        content.add_widget(sep)
+
         btn_row = BoxLayout(size_hint_y=None, height='48dp', spacing='8dp')
         btn_row.add_widget(MDFlatButton(
             text='删除',
+            theme_text_color='Custom',
+            text_color=(0.85, 0.15, 0.15, 1),
             on_release=lambda x: self._delete_transaction(transaction_id, popup),
         ))
-        btn_row.add_widget(MDFlatButton(text='关闭', on_release=lambda x: popup.dismiss()))
+        btn_row.add_widget(MDRaisedButton(
+            text='关闭',
+            on_release=lambda x: popup.dismiss(),
+        ))
         content.add_widget(btn_row)
+
+        popup = Popup(
+            title='账单详情',
+            title_color=(0.1, 0.1, 0.1, 1),
+            title_size='18sp',
+            content=content,
+            size_hint=(0.9, None),
+            height='420dp',
+            background='',
+            background_color=(1, 1, 1, 1),
+            separator_color=(0.88, 0.88, 0.88, 1),
+        )
         popup.open()
 
     def _delete_transaction(self, transaction_id, popup):

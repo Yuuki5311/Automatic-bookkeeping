@@ -10,3 +10,4 @@ bin/
 .DS_Store
 patch_*.py
 buildozer_build*.log
+.mcp.json

@@ -1,13 +1,19 @@
 package org.example.autobookkeeping;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.animation.ValueAnimator;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -118,18 +124,24 @@ public class FloatWindowService extends Service {
         _halfSize = _collapsedSize / 2;
 
         IntentFilter filter = new IntentFilter(ACTION_CATEGORIES);
-        registerReceiver(_receiver, filter);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(_receiver, filter, RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(_receiver, filter);
+        }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        startForeground();
         if (!_initialized) {
             _initialized = true;
             _mainHandler.post(new Runnable() {
                 @Override
                 public void run() {
                     initFloatWindow();
-                    // 请求分类数据
+                    loadCategoriesFromDb();
+                    // 请求分类数据（保留作为备用）
                     Intent reqIntent = new Intent("org.example.autobookkeeping.REQUEST_CATEGORIES");
                     reqIntent.setPackage("org.example.autobookkeeping");
                     sendBroadcast(reqIntent);
@@ -137,6 +149,22 @@ public class FloatWindowService extends Service {
             });
         }
         return START_STICKY;
+    }
+
+    private void startForeground() {
+        String channelId = "float_window_channel";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    channelId, "悬浮窗服务", NotificationManager.IMPORTANCE_MIN);
+            channel.setShowBadge(false);
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (nm != null) nm.createNotificationChannel(channel);
+        }
+        Notification notification = new Notification.Builder(this, channelId)
+                .setContentTitle("自动记账悬浮窗运行中")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .build();
+        startForeground(1001, notification);
     }
 
     @Override
@@ -158,7 +186,8 @@ public class FloatWindowService extends Service {
                 _collapsedSize,
                 _collapsedSize,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
         );
         _params.gravity = Gravity.TOP | Gravity.END;
@@ -174,7 +203,7 @@ public class FloatWindowService extends Service {
         _collapsedBtn.setTextColor(Color.WHITE);
         _collapsedBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         _collapsedBtn.setGravity(Gravity.CENTER);
-        _collapsedBtn.setBackground(makeCircleDrawable(Color.parseColor("#FF6600")));
+        _collapsedBtn.setBackground(makeCircleDrawable(Color.parseColor("#4CAF50")));
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(_collapsedSize, _collapsedSize);
         root.addView(_collapsedBtn, btnLp);
 
@@ -371,7 +400,8 @@ public class FloatWindowService extends Service {
 
         _params.width = _collapsedSize;
         _params.height = _collapsedSize;
-        _params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+        _params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
         _params.x = 0;
         _floatView.setAlpha(1.0f);
         try {
@@ -401,10 +431,12 @@ public class FloatWindowService extends Service {
         }
         buildCategoryButtons();
         updateConfirmBtn();
+        loadCategoriesFromDb();
 
         _params.width = _expandedWidth;
         _params.height = WindowManager.LayoutParams.WRAP_CONTENT;
-        _params.flags = WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
+        _params.flags = WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+                | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
         _params.x = 0;
         _floatView.setAlpha(1.0f);
         try {
@@ -503,7 +535,7 @@ public class FloatWindowService extends Service {
     private void startSlideAndFade(boolean hide) {
         cancelAnimators();
 
-        final int targetX = hide ? _halfSize : 0;
+        final int targetX = hide ? -_halfSize : 0;
         final float targetAlpha = hide ? 0.3f : 1.0f;
         final int startX = _params.x;
         final float startAlpha = _floatView.getAlpha();
@@ -531,6 +563,54 @@ public class FloatWindowService extends Service {
         });
         _alphaAnimator.start();
     }
+
+    private void loadCategoriesFromDb() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String dbPath = getFilesDir().getAbsolutePath() + "/app/bookkeeping.db";
+                    // 备用路径
+                    java.io.File dbFile = new java.io.File(dbPath);
+                    if (!dbFile.exists()) {
+                        dbPath = getFilesDir().getAbsolutePath() + "/bookkeeping.db";
+                        dbFile = new java.io.File(dbPath);
+                    }
+                    if (!dbFile.exists()) {
+                        android.util.Log.w(TAG, "DB not found at: " + dbPath);
+                        return;
+                    }
+                    SQLiteDatabase db = SQLiteDatabase.openDatabase(
+                            dbPath, null, SQLiteDatabase.OPEN_READONLY);
+                    Cursor cursor = db.rawQuery(
+                            "SELECT id, name FROM categories ORDER BY id", null);
+                    final List<Map<String, Object>> list = new ArrayList<>();
+                    while (cursor.moveToNext()) {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("id", cursor.getInt(0));
+                        map.put("name", cursor.getString(1));
+                        list.add(map);
+                    }
+                    cursor.close();
+                    db.close();
+                    if (!list.isEmpty()) {
+                        _mainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                _categories = list;
+                                _selectedCategoryIndex = 0;
+                                _selectedCategoryId = (int) _categories.get(0).get("id");
+                                if (_categoryContainer != null) buildCategoryButtons();
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    android.util.Log.w(TAG, "loadCategoriesFromDb failed: " + e.getMessage());
+                }
+            }
+        }).start();
+    }
+
 
     private void cancelAnimators() {
         if (_alphaAnimator != null) _alphaAnimator.cancel();

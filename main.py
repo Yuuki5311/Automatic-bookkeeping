@@ -128,6 +128,65 @@ try:
         def on_start(self):
             from src.service.notification_service import start_service
             start_service()
+            self._register_category_broadcast()
+
+        def _register_category_broadcast(self):
+            from kivy.utils import platform
+            if platform != 'android':
+                return
+            try:
+                from jnius import autoclass, PythonJavaClass, java_method
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                context = PythonActivity.mActivity.getApplicationContext()
+                IntentFilter = autoclass('android.content.IntentFilter')
+                BroadcastReceiver = autoclass('android.content.BroadcastReceiver')
+
+                app = self
+
+                class CategoryRequestReceiver(PythonJavaClass):
+                    __javainterfaces__ = ['android/content/BroadcastReceiver']
+                    __javacontext__ = 'app'
+
+                    @java_method('(Landroid/content/Context;Landroid/content/Intent;)V')
+                    def onReceive(self, ctx, intent):
+                        app._send_categories_broadcast()
+
+                self._cat_receiver = CategoryRequestReceiver()
+                filt = IntentFilter('org.example.autobookkeeping.REQUEST_CATEGORIES')
+                if hasattr(context, 'registerReceiver'):
+                    try:
+                        Build = autoclass('android.os.Build')
+                        if Build.VERSION.SDK_INT >= 33:
+                            context.registerReceiver(self._cat_receiver, filt, context.RECEIVER_NOT_EXPORTED)
+                        else:
+                            context.registerReceiver(self._cat_receiver, filt)
+                    except Exception:
+                        context.registerReceiver(self._cat_receiver, filt)
+                # 启动后立即发送一次分类数据
+                self._send_categories_broadcast()
+            except Exception as e:
+                import traceback as tb
+                tb.print_exc()
+
+        def _send_categories_broadcast(self):
+            from kivy.utils import platform
+            if platform != 'android':
+                return
+            try:
+                import json
+                from jnius import autoclass
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                context = PythonActivity.mActivity.getApplicationContext()
+                Intent = autoclass('android.content.Intent')
+                cats = self.db.get_categories()
+                data = [{'id': c.id, 'name': c.name} for c in cats]
+                intent = Intent('org.example.autobookkeeping.CATEGORIES')
+                intent.setPackage('org.example.autobookkeeping')
+                intent.putExtra('categories_json', json.dumps(data, ensure_ascii=False))
+                context.sendBroadcast(intent)
+            except Exception:
+                import traceback as tb
+                tb.print_exc()
 
         def _nav_touch(self, instance, touch, name):
             if instance.collide_point(*touch.pos):

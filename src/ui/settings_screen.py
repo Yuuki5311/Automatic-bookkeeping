@@ -530,8 +530,28 @@ class SettingsScreen(MDScreen):
         self.db.add_category(Category(id=None, name=name, icon=icon or 'dots-horizontal', keywords=keywords))
         popup.dismiss()
         self.refresh()
+        self._notify_categories_changed()
 
-    def _show_edit_category_popup(self, cat):
+    def _save_edit_category(self, cat, new_keywords, popup):
+        from src.models.transaction import Category
+        self.db.update_category(Category(id=cat.id, name=cat.name, icon=cat.icon, keywords=new_keywords))
+        popup.dismiss()
+        self.refresh()
+        self._notify_categories_changed()
+
+    def _delete_category(self, category_id):
+        self.db.delete_category(category_id)
+        self.refresh()
+        self._notify_categories_changed()
+
+    def _notify_categories_changed(self):
+        try:
+            from kivy.app import App
+            app = App.get_running_app()
+            if hasattr(app, '_send_categories_broadcast'):
+                app._send_categories_broadcast()
+        except Exception:
+            pass
         content = BoxLayout(orientation='vertical', spacing='8dp', padding='8dp')
         content.add_widget(MDLabel(text=f'编辑：{cat.name}', size_hint_y=None, height='40dp'))
         keywords_field = MDTextField(hint_text='关键词（逗号分隔）', text=cat.keywords or '')
@@ -561,12 +581,4 @@ class SettingsScreen(MDScreen):
         content.add_widget(btn_row)
         popup.open()
 
-    def _save_edit_category(self, cat, new_keywords, popup):
-        from src.models.transaction import Category
-        self.db.update_category(Category(id=cat.id, name=cat.name, icon=cat.icon, keywords=new_keywords))
-        popup.dismiss()
-        self.refresh()
 
-    def _delete_category(self, category_id):
-        self.db.delete_category(category_id)
-        self.refresh()

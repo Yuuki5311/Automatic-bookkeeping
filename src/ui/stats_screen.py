@@ -53,7 +53,7 @@ class PieChart(Widget):
 
 
 class BarChart(Widget):
-    """用 Kivy Canvas 绘制柱状图（收入绿色，支出红色）"""
+    """近6个月净值柱状图：净收入绿色，净支出红色，柱高=净值绝对值，顶部标净值"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -61,7 +61,7 @@ class BarChart(Widget):
         self.bind(size=self._draw, pos=self._draw)
 
     def set_data(self, data):
-        self.data = data
+        self.data = data[-6:]  # 最多保留最近6个月
         self._draw()
 
     def _draw(self, *args):
@@ -70,44 +70,54 @@ class BarChart(Widget):
             return
 
         n = len(self.data)
-        max_val = max(
-            max(d['income'] for d in self.data),
-            max(d['expense'] for d in self.data),
-            1  # 避免除零
-        )
+        # 净值列表（正=净收入，负=净支出）
+        nets = [d['income'] - d['expense'] for d in self.data]
+        max_abs = max((abs(v) for v in nets), default=1) or 1
 
-        padding = 30
-        chart_w = self.width - padding * 2
-        chart_h = self.height - padding * 2
-        bar_group_w = chart_w / n
-        bar_w = bar_group_w * 0.35
+        pad_left = 10
+        pad_right = 10
+        pad_bottom = 52  # 月份标签空间（字体40px + 间距）
+        pad_top = 20     # 顶部数字空间
+        chart_w = self.width - pad_left - pad_right
+        chart_h = self.height - pad_bottom - pad_top
+
+        slot_w = chart_w / 6  # 固定6个槽位，从左开始排
+        bar_w = slot_w * 0.55
 
         with self.canvas:
-            for i, d in enumerate(self.data):
-                x_base = self.x + padding + i * bar_group_w
+            for i, (d, net) in enumerate(zip(self.data, nets)):
+                bar_h = (abs(net) / max_abs) * chart_h
+                x_bar = self.x + pad_left + i * slot_w + (slot_w - bar_w) / 2
+                y_bar = self.y + pad_bottom
 
-                # 收入柱（绿色）
-                income_h = (d['income'] / max_val) * chart_h
-                Color(0.2, 0.7, 0.2, 1)
-                Rectangle(
-                    pos=(x_base, self.y + padding),
-                    size=(bar_w, income_h)
-                )
+                # 柱体颜色：净收入绿，净支出红
+                if net >= 0:
+                    Color(0.2, 0.75, 0.2, 1)
+                else:
+                    Color(0.9, 0.2, 0.2, 1)
+                Rectangle(pos=(x_bar, y_bar), size=(bar_w, bar_h))
 
-                # 支出柱（红色）
-                expense_h = (d['expense'] / max_val) * chart_h
-                Color(0.9, 0.2, 0.2, 1)
-                Rectangle(
-                    pos=(x_base + bar_w + 2, self.y + padding),
-                    size=(bar_w, expense_h)
-                )
+                # 顶部净值数字
+                Color(1, 1, 1, 1)
+                val_text = f"¥{abs(net):.0f}"
+                lbl_val = CoreLabel(text=val_text, font_size=40,
+                                    color=(0.1, 0.1, 0.1, 1),
+                                    font_name='NotoSansSC-Regular.ttf')
+                lbl_val.refresh()
+                tex_val = lbl_val.texture
+                tx = x_bar + bar_w / 2 - tex_val.size[0] / 2
+                ty = y_bar + bar_h + 2
+                Rectangle(texture=tex_val, pos=(tx, ty), size=tex_val.size)
 
-                # 绘制月份标签
-                Color(1, 1, 1, 1)  # 必须设为白色才能正常显示纹理颜色
-                lbl = CoreLabel(text=f"{d['month']}月", font_size=12, color=(0.4, 0.4, 0.4, 1), font_name='NotoSansSC-Regular.ttf')
-                lbl.refresh()
-                tex = lbl.texture
-                Rectangle(texture=tex, pos=(x_base + bar_group_w / 2 - tex.size[0] / 2, self.y + padding - 20), size=tex.size)
+                # 月份标签
+                lbl_m = CoreLabel(text=f"{d['month']}月", font_size=40,
+                                  color=(0.2, 0.2, 0.2, 1),
+                                  font_name='NotoSansSC-Regular.ttf')
+                lbl_m.refresh()
+                tex_m = lbl_m.texture
+                mx = x_bar + bar_w / 2 - tex_m.size[0] / 2
+                my = self.y + 6
+                Rectangle(texture=tex_m, pos=(mx, my), size=tex_m.size)
 
 class StatsScreen(MDScreen):
     # 饼图颜色列表
@@ -168,8 +178,8 @@ class StatsScreen(MDScreen):
         bar_card.add_widget(self.bar_chart)
 
         legend_bar = MDBoxLayout(orientation='horizontal', size_hint_y=None, height='30dp')
-        legend_bar.add_widget(MDLabel(text='■ 收入', theme_text_color='Custom', text_color=(0.2, 0.7, 0.2, 1)))
-        legend_bar.add_widget(MDLabel(text='■ 支出', theme_text_color='Custom', text_color=(0.9, 0.2, 0.2, 1)))
+        legend_bar.add_widget(MDLabel(text='■ 净收入', theme_text_color='Custom', text_color=(0.2, 0.75, 0.2, 1)))
+        legend_bar.add_widget(MDLabel(text='■ 净支出', theme_text_color='Custom', text_color=(0.9, 0.2, 0.2, 1)))
         bar_card.add_widget(legend_bar)
         
         root.add_widget(bar_card)
